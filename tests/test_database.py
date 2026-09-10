@@ -41,3 +41,18 @@ def test_persistence_and_session_isolation(tmp_path, light):
     db.import_batch(light=light)
     assert len(Database(path).read('light')) == 2
     assert Database().read('light').empty
+
+
+def test_android_envelope_preserves_settings_and_sleep(light, sleep):
+    import json
+    db = Database()
+    db.import_batch(sleep=sleep)
+    settings = db.settings()
+    settings['initial_target'] = 12345
+    db.save_settings(settings)
+    payload = json.dumps({'schema_version': 1, 'morning_light': json.loads(light.to_json(orient='records'))})
+    db.import_json(payload)
+    db.import_json(payload)
+    assert len(db.read('light')) == 2
+    assert len(db.read('sleep')) == 1
+    assert db.settings()['initial_target'] == 12345

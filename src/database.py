@@ -69,6 +69,12 @@ class Database:
         data = json.loads(content)
         if not isinstance(data, dict) or data.get('schema_version') != 1:
             raise ValueError('Expected Dawnflux schema_version 1 JSON backup.')
+        if set(data) == {'schema_version', 'morning_light'}:
+            # Android session envelope: importing exposure must not reset settings/sleep.
+            if not isinstance(data['morning_light'], list) or not data['morning_light']:
+                raise ValueError('Android export requires a nonempty morning_light array.')
+            self.import_batch(light=pd.DataFrame(data['morning_light']))
+            return
         if not {'morning_light', 'sleep', 'settings'}.issubset(data):
             raise ValueError('Backup requires morning_light, sleep and settings.')
         light = pd.DataFrame(data['morning_light']) if data['morning_light'] else pd.DataFrame(columns=LIGHT_COLUMNS)

@@ -104,7 +104,7 @@ elif page == 'Sleep':
 
 elif page == 'Import / export':
     st.subheader('Import records')
-    kind = st.selectbox('Import format', ['JSON backup', 'Morning light CSV', 'Sleep CSV'])
+    kind = st.selectbox('Import format', ['JSON backup / Android session', 'Morning light CSV', 'Sleep CSV'])
     upload = st.file_uploader('Choose a file', type=['csv', 'json'], max_upload_size=20)
     st.caption('Imports are atomic. Identical re-imports do not create duplicates; conflicting records are rejected. Keep each sensor session complete in one file.')
     if st.button('Import file', disabled=upload is None):
@@ -113,7 +113,7 @@ elif page == 'Import / export':
                 if upload.size > 20 * 1024 * 1024:
                     raise ValueError('Maximum file size is 20 MB.')
                 text = upload.getvalue().decode('utf-8-sig')
-                if kind == 'JSON backup':
+                if kind == 'JSON backup / Android session':
                     db.import_json(text)
                 else:
                     frame = pd.read_csv(io.StringIO(text), dtype={'session_id': str, 'date': str}, keep_default_na=False,
