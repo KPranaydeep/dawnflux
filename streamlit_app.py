@@ -6,6 +6,8 @@ from uuid import uuid4
 import pandas as pd
 import streamlit as st
 from src.database import Database
+from src.storage_ui import open_storage
+from src.postgres import StorageError
 from src.exposure import manual_session, summarize_sessions, daily_exposure
 from src.sleep import sleep_duration
 from src.statistics import pair_days, window_statistics, correlation, exposure_bands, rolling_sleep
@@ -16,18 +18,9 @@ st.set_page_config(page_title='Dawnflux', page_icon=':material/wb_sunny:', layou
 st.title('Dawnflux')
 st.caption('Personal morning-light experiments · deterministic analysis · no LLM')
 
-# Only an operator-controlled environment variable enables shared persistent storage.
-# Public deployments default to a private SQLite connection for each browser session.
-db_path = os.environ.get('DAWNFLUX_DB_PATH', ':memory:')
-if 'db' not in st.session_state:
-    st.session_state.db = Database(db_path)
-db = st.session_state.db
+db = open_storage()
 settings = db.settings()
 today = pd.Timestamp.now(tz=settings['timezone']).date()
-if db_path == ':memory:':
-    st.info('Private temporary session. Download a JSON backup before closing or refreshing this tab. Restore it under Import / export next time.')
-else:
-    st.caption('Private local database enabled. Export regularly for backup.')
 if 'notice' in st.session_state:
     st.success(st.session_state.pop('notice'))
 page = st.selectbox('Workspace', ['Dashboard', 'Morning light', 'Sleep', 'Import / export', 'Settings', 'Methods'], key='page')
@@ -55,7 +48,7 @@ if page == 'Settings':
             try:
                 db.save_settings(dict(timezone=timezone, wake_time=wake.isoformat(), sleep_target=sleep_target, initial_target=initial))
                 saved('Settings saved.')
-            except (ValueError, KeyError) as exc:
+            except (ValueError, KeyError, StorageError) as exc:
                 st.error(str(exc))
 
 elif page == 'Morning light':
@@ -73,7 +66,7 @@ elif page == 'Morning light':
                 frame = manual_session(str(uuid4()), local_timestamp(day, wake_clock), local_timestamp(day, start_clock), duration, lux, target)
                 db.import_batch(light=frame)
                 saved('Morning-light session saved. Back it up under Import / export.')
-            except (ValueError, TypeError) as exc:
+            except (ValueError, TypeError, StorageError) as exc:
                 st.error(str(exc))
     st.dataframe(summarize_sessions(db.read('light')), hide_index=True)
 
@@ -98,7 +91,7 @@ elif page == 'Sleep':
                               sleep_regularity=None, notes=notes)
                 db.import_batch(sleep=pd.DataFrame([record]))
                 saved('Sleep result saved. Back it up under Import / export.')
-            except (ValueError, TypeError) as exc:
+            except (ValueError, TypeError, StorageError) as exc:
                 st.error(str(exc))
     st.dataframe(db.read('sleep'), hide_index=True)
 
@@ -120,7 +113,7 @@ elif page == 'Import / export':
                                         na_values=[''])
                     db.import_batch(**{'light' if kind == 'Morning light CSV' else 'sleep': frame})
                 saved('Import complete.')
-            except (ValueError, TypeError, KeyError, OverflowError) as exc:
+            except (ValueError, TypeError, KeyError, OverflowError, StorageError) as exc:
                 st.error(f'Import rejected: {exc}')
     st.subheader('Export and backup')
     st.download_button('Download complete JSON backup', db.export_json(), 'dawnflux-backup.json', 'application/json')
@@ -200,3 +193,4 @@ Lux·minutes measures photopic illuminance over time, not retinal or melanopic e
         with st.expander(f'Calculation source: {module}.py'):
             from pathlib import Path
             st.code((Path(__file__).parent / 'src' / f'{module}.py').read_text(encoding='utf-8'), language='python')
+
