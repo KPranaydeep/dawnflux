@@ -1,12 +1,12 @@
-# Stage 2: native Android measurement client (deferred)
+# Stage 2: native Android measurement client
 
-The instrument must operate independently of Streamlit. No browser sensor API or website keep-alive is part of the design. This file defines the integration boundary; it is not a claim that an Android client has been built or device-tested.
+The instrument operates independently of Streamlit. No browser sensor API or website keep-alive is part of the design. The implementation is now in `android/`; see [build, use and validation instructions](../android/README.md). It uses native Java and SQLite rather than the originally considered Kotlin/Room stack. Real-device behavior has not yet been verified on the user's OnePlus Nord 5.
 
 ## Responsibilities
 
 1. User explicitly starts a session after receiving/entering wake time and target (initially manual entry; a versioned session-request import can follow).
-2. Kotlin client checks for `Sensor.TYPE_LIGHT`; if absent, report unsupported and never fabricate readings.
-3. Persist timestamped lux samples and elapsed monotonic times locally using Room. Use stable UUID session IDs and transactional sample writes.
+2. Native client checks for `Sensor.TYPE_LIGHT`; if absent, report unsupported and never fabricate readings.
+3. Persist timestamped lux samples locally using SQLite, with the wall timeline derived from monotonic sensor time. Use stable UUID session IDs and transactional sample writes.
 4. Compute cumulative lux·minutes using the v1 trapezoidal rule. Persist every reading, including zero lux. Do not add unobserved time.
 5. Start an Android foreground service from the visible activity, with an ongoing notification showing dose, target, elapsed session time, and a Stop action.
 6. Keep the explicitly started session working with the screen locked. Assess whether each device's light sensor is a wake-up sensor; use an appropriately bounded partial wake lock if required. Foreground service presence alone does not guarantee sensor delivery. Detect/report gaps and interrupted sessions.
@@ -22,6 +22,6 @@ Raw endpoint `target_reached` is per-reading, not a final-session boolean repeat
 
 ## Implementation gate
 
-Before coding, verify current Android target-SDK foreground-service types, manifest permissions, background-start restrictions, notification permissions and store policy against official Android documentation. Select the service type that actually fits ambient-light measurement; do not misuse a health or location type to work around restrictions.
+The implemented service uses `specialUse` with an explicit subtype, foreground-service permissions, notification permission and a bounded wake lock. It starts from a visible activity. Public Play distribution would require a separate service-type review and release signing; the personal testing APK does not claim that review has happened.
 
 Hardware acceptance tests must cover supported and missing sensors, bright-light saturation, timestamps/integration, lock screen, battery saver, process interruption, notification denial, target notification exactly once, user stop, clock/timezone changes, long gaps, and exported-file import into Dawnflux. Test real devices: emulator/screen-on tests cannot establish screen-off sensor reliability.

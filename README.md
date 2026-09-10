@@ -4,7 +4,7 @@ Personal morning-light experimentation, with deterministic Python analysis and n
 
 **Streamlit = brain. Android = instrument. GitHub = source control. Local/exported data = experimental record.**
 
-Stage 1 is implemented here. Stage 2 is a documented native Android integration plan, intentionally not a browser sensor implementation.
+Stage 1 is implemented here. Stage 2 now includes a native Android measurement client under `android/`; real-device screen-off verification is still required.
 
 ## Run locally
 
@@ -134,4 +134,4 @@ Tests cover integration and gaps, midnight/DST, calendar windows, next-night pai
 
 ## Stage 2
 
-See [Android measurement client plan](docs/android-client.md). The Android app is deliberately deferred until the analytical workflow is established.
+See [Android installation and recording instructions](android/README.md). The client records offline, displays target progress, runs an explicitly started foreground session with a bounded wake lock, alerts at the target, and exports CSV/JSON for this dashboard. See [integration notes](docs/android-client.md) for the architectural boundary. Android JSON session imports preserve your existing settings and sleep records.
