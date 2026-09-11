@@ -18,6 +18,7 @@ public class LightService extends Service implements SensorEventListener {
     public static String status="Ready", sessionId;
     public static double lux, total, target;
     public static long lastArrival, started;
+    public static boolean etaReliable;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final Dose dose=new Dose();
     private SensorManager sensors;
@@ -64,7 +65,7 @@ public class LightService extends Service implements SensorEventListener {
             OffsetDateTime now=OffsetDateTime.now(wake.getOffset());
             if(!Double.isFinite(requested)||requested<1||requested>10000000||wake.isAfter(now)||!wake.toLocalDate().equals(now.toLocalDate()))
                 throw new IllegalArgumentException("Choose a positive target and today's actual wake time before now.");
-            target=requested; total=0; lux=0; lastArrival=0; status="Waiting for first sensor reading";
+            target=requested; total=0; lux=0; lastArrival=0; etaReliable=false; status="Waiting for first sensor reading";
             Notification notification=notification(status);
             if(Build.VERSION.SDK_INT>=34) startForeground(1,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
             else startForeground(1,notification);
@@ -108,26 +109,30 @@ public class LightService extends Service implements SensorEventListener {
         long time=anchorWall+(event.timestamp-anchorElapsed)/1_000_000;
         if(dose.lastTime>=0&&time-dose.lastTime<1000) return;
         double value=event.values[0];
-        if(!Double.isFinite(value)||value<0) { quality="poor"; return; }
+        if(!Double.isFinite(value)||value<0) { quality="poor"; etaReliable=false; return; }
         if(value>=sensor.getMaximumRange()||event.accuracy==SensorManager.SENSOR_STATUS_UNRELIABLE) quality="poor";
         if(!dose.add(time,value)) return;
         if(dose.gapped&&!quality.equals("poor")) quality="gapped";
         try { store.sample(sessionId,time,value,dose.total,quality); }
         catch(Exception ex) { quality="poor"; finish("interrupted","Could not save sensor readings"); return; }
-        lux=value; total=dose.total; lastArrival=SystemClock.elapsedRealtime();
+        lux=value; total=dose.total; lastArrival=SystemClock.elapsedRealtime(); etaReliable=quality.equals("good");
         if(total>=target&&!notified) { notified=true; alert("Light target reached","Your measured exposure reached the session target. Tap Stop when you are done."); }
     }
     @Override public void onAccuracyChanged(Sensor sensor,int accuracy) {
-        if(running&&accuracy==SensorManager.SENSOR_STATUS_UNRELIABLE) quality="poor";
+        if(running&&accuracy==SensorManager.SENSOR_STATUS_UNRELIABLE) { quality="poor"; etaReliable=false; }
     }
     private PendingIntent open() {
         return PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
+    public static String eta() {
+        boolean fresh=lastArrival>0 && SystemClock.elapsedRealtime()-lastArrival<=20_000;
+        return Eta.label(total,target,lux,fresh,etaReliable);
+    }
     private Notification notification(String text) {
         PendingIntent stop=PendingIntent.getService(this,1,new Intent(this,LightService.class).setAction(STOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this,ACTIVE).setSmallIcon(R.drawable.ic_sun).setContentTitle("Dawnflux · light recharge")
-            .setContentText(String.format(Locale.US,"%.0f / %.0f lux·min · %.0f lux · %s",total,target,lux,text))
-            .setStyle(new Notification.BigTextStyle().bigText(String.format(Locale.US,"%.0f / %.0f lux·min · %.0f lux\n%s",total,target,lux,text)))
+            .setContentText(eta())
+            .setStyle(new Notification.BigTextStyle().bigText(String.format(Locale.US,"%s\n%.0f / %.0f lux·min · %.0f lux\n%s",eta(),total,target,lux,text)))
             .setProgress(100,(int)Math.min(100,100*total/Math.max(1,target)),false)
             .setContentIntent(open()).setOngoing(true).setOnlyAlertOnce(true)
             .addAction(new Notification.Action.Builder(null,"Stop",stop).build()).build();

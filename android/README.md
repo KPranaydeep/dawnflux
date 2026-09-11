@@ -10,6 +10,7 @@ Native, offline morning-light recorder. Android 8+ (API 26), target SDK 36. Inte
 4. Enter your actual wake time today and the target from your Dawnflux dashboard. The prefilled 10,000 lux·minutes is only a placeholder.
 5. Tap **Start light session**. Take the phone outside with its light sensor uncovered. The gauge shows accumulated lux·minutes / target; it is not a physiological battery or vitamin D estimate.
 6. Lock the screen if desired. A foreground notification shows progress and provides **Stop**. Keep the phone out of your pocket. The app holds a bounded partial wake lock only during the explicit session.
+   The app and notification show **ETA**: remaining lux·minutes divided by the latest measured lux. It updates with real readings and assumes the light stays constant. Dark, stale or unreliable readings do not produce an ETA. Estimates may exceed the two-hour recording limit; they do not extend the session or add unmeasured exposure.
 7. The target alert fires once per session. Recording continues until you tap **Stop and save**, or the two-hour cap is reached.
 8. Choose a saved session and save CSV or JSON using Android's document picker. Upload it in Streamlit's **Import / export** page: choose **Morning light CSV** or **JSON backup / Android session**.
 9. Record the following night's sleep in Streamlit to build the exposure/outcome evidence. Android records light only.

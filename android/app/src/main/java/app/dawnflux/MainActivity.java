@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
         text(body,"Target (lux·minutes)",15);
         targetInput=new EditText(this); targetInput.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
         targetInput.setText(getPreferences(0).getString("target","10000")); body.addView(targetInput);
-        text(body,"Use your Dawnflux target here. 10,000 is only a placeholder. Sessions stop automatically after two hours.",13);
+        text(body,"Use your Dawnflux target here. 10,000 is only a placeholder. ETA assumes the current light stays constant; it can change as you move. Sessions stop automatically after two hours even if the ETA is longer.",13);
         start=button(body,"Start light session",v->startSession());
         stop=button(body,"Stop and save",v->startService(new Intent(this,LightService.class).setAction(LightService.STOP)));
         button(body,"Notification settings",v->startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName())));
@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
             if(active) {
                 double percent=100*LightService.total/Math.max(1,LightService.target);
                 long age=LightService.lastArrival==0?0:(SystemClock.elapsedRealtime()-LightService.lastArrival)/1000;
-                live.setText(String.format(Locale.US,"%.0f lux · %.1f / %.0f lux·min\n%s\nLast reading: %s",LightService.lux,LightService.total,LightService.target,LightService.status,LightService.lastArrival==0?"waiting":age+" seconds ago"));
+                live.setText(String.format(Locale.US,"%s\n%.0f lux · %.1f / %.0f lux·min\n%s\nLast reading: %s",LightService.eta(),LightService.lux,LightService.total,LightService.target,LightService.status,LightService.lastArrival==0?"waiting":age+" seconds ago"));
                 gauge.percent=(float)Math.min(100,percent); gauge.invalidate();
             } else live.setText(LightService.status);
             if(active!=previousRunning) { previousRunning=active; reloadHistory(); }
