@@ -58,6 +58,11 @@ public class MainActivity extends Activity {
         text(body,"Woke up (HH:mm)",15);
         wakeInput=new EditText(this); wakeInput.setId(102); wakeInput.setSingleLine(true); wakeInput.setHint("07:00");
         wakeInput.setText(getPreferences(0).getString("wake","07:00")); body.addView(wakeInput);
+        text(body,"Sleep score (0-100)",15);
+        scoreInput=new EditText(this); scoreInput.setId(103); scoreInput.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL); body.addView(scoreInput);
+        button(body,"Save sleep",v->saveSleep());
+        sleepStatus=text(body,"Enter last night's sleep here, even while light recording is running. Wake date is today; an evening sleep time means the previous night.",14);
+        loadSleep();
         text(body,"Target (lux·minutes)",15);
         targetInput=new EditText(this); targetInput.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
         targetInput.setText(getPreferences(0).getString("target","10000")); body.addView(targetInput);
