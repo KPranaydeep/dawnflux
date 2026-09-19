@@ -85,7 +85,7 @@ public class Store extends SQLiteOpenHelper {
         Session(String id, String wake, double target, String quality, String state, String reason) {
             this.id=id; this.wake=wake; this.target=target; this.quality=quality; this.state=state; this.reason=reason;
         }
-        @Override public String toString() { return wake.substring(0,10) + " Â· " + state + " Â· " + id.substring(0,8); }
+        @Override public String toString() { return wake.substring(0,10) + " · " + state + " · " + id.substring(0,8); }
     }
     public static final class Sample {
         public final long time;

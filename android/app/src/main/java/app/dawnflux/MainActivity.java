@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
         text(body,"Morning light recharge",19);
         text(body,"Keep the phone's light sensor uncovered. This measures light at your phone, not a body battery. You can lock the screen after starting.",15);
         Sensor sensor=LightService.findSensor(getSystemService(SensorManager.class));
-        text(body,sensor==null?"No ambient-light sensor found. Recording is unavailable.":"Sensor: "+sensor.getName()+"\nWake-up sensor: "+sensor.isWakeUpSensor()+" Â· maximum "+sensor.getMaximumRange()+" lux",13);
+        text(body,sensor==null?"No ambient-light sensor found. Recording is unavailable.":"Sensor: "+sensor.getName()+"\nWake-up sensor: "+sensor.isWakeUpSensor()+" · maximum "+sensor.getMaximumRange()+" lux",13);
         gauge=new Gauge(this); body.addView(gauge,new LinearLayout.LayoutParams(-1,dp(80)));
         text(body,"Estimated time to target",19);
         estimatedTime=text(body,"Start a light session to calculate",24);
@@ -58,7 +58,7 @@ public class MainActivity extends Activity {
         text(body,"Woke up (HH:mm)",15);
         wakeInput=new EditText(this); wakeInput.setId(102); wakeInput.setSingleLine(true); wakeInput.setHint("07:00");
         wakeInput.setText(getPreferences(0).getString("wake","07:00")); body.addView(wakeInput);
-        text(body,"Target (luxÂ·minutes)",15);
+        text(body,"Target (lux·minutes)",15);
         targetInput=new EditText(this); targetInput.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
         targetInput.setText(getPreferences(0).getString("target","10000")); body.addView(targetInput);
         text(body,"Use your Dawnflux target here. 10,000 is only a placeholder. ETA assumes the current light stays constant; it can change as you move. Sessions stop automatically after two hours even if the ETA is longer.",13);
@@ -78,7 +78,7 @@ public class MainActivity extends Activity {
         });
         button(body,"Save selected session as CSV",v->export("csv"));
         button(body,"Save selected session as JSON",v->export("json"));
-        text(body,"After stopping: save CSV or JSON to Downloads, then upload it in Dawnflux â†’ Import / export. Your readings stay on this phone unless you export them. No website or internet is needed while recording.",15);
+        text(body,"After stopping: save CSV or JSON to Downloads, then upload it in Dawnflux → Import / export. Your readings stay on this phone unless you export them. No website or internet is needed while recording.",15);
         reloadHistory(); previousRunning=LightService.running;
     }
     private void loadSleep() {
@@ -164,7 +164,7 @@ public class MainActivity extends Activity {
                 double percent=100*LightService.total/Math.max(1,LightService.target);
                 long age=LightService.lastArrival==0?0:(SystemClock.elapsedRealtime()-LightService.lastArrival)/1000;
                 estimatedTime.setText(LightService.eta());
-                live.setText(String.format(Locale.US,"%.0f lux Â· %.1f / %.0f luxÂ·min\n%s\nLast reading: %s",LightService.lux,LightService.total,LightService.target,LightService.status,LightService.lastArrival==0?"waiting":age+" seconds ago"));
+                live.setText(String.format(Locale.US,"%.0f lux · %.1f / %.0f lux·min\n%s\nLast reading: %s",LightService.lux,LightService.total,LightService.target,LightService.status,LightService.lastArrival==0?"waiting":age+" seconds ago"));
                 gauge.percent=(float)Math.min(100,percent); gauge.invalidate();
             } else {
                 estimatedTime.setText("Start a light session to calculate");
@@ -181,7 +181,7 @@ public class MainActivity extends Activity {
     private void showSession() {
         Store.Session s=selected(); if(s==null) { detail.setText("No sessions yet"); return; }
         List<Store.Sample> samples=store.samples(s.id);
-        detail.setText(String.format(Locale.US,"%s\n%s Â· %s\n%d readings Â· %.1f luxÂ·min\n%s",s.id,s.state,s.quality,samples.size(),samples.isEmpty()?0:samples.get(samples.size()-1).dose,s.reason));
+        detail.setText(String.format(Locale.US,"%s\n%s · %s\n%d readings · %.1f lux·min\n%s",s.id,s.state,s.quality,samples.size(),samples.isEmpty()?0:samples.get(samples.size()-1).dose,s.reason));
     }
     private void export(String format) {
         Store.Session s=selected(); if(s==null) { message("Record a session first."); return; }
@@ -205,7 +205,7 @@ public class MainActivity extends Activity {
                 if(out==null) throw new IllegalStateException("Could not open the export file");
                 out.write(content.getBytes(StandardCharsets.UTF_8));
             }
-            message("Saved. Upload this file in Dawnflux â†’ Import / export.");
+            message("Saved. Upload this file in Dawnflux → Import / export.");
         } catch(Exception ex) { message("Export failed: "+ex.getMessage()); }
     }
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); out.putString("exportId",exportId); out.putString("exportFormat",exportFormat); }
