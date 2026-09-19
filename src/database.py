@@ -75,6 +75,11 @@ class Database:
                 raise ValueError('Android export requires a nonempty morning_light array.')
             self.import_batch(light=pd.DataFrame(data['morning_light']))
             return
+        if set(data) == {'schema_version', 'morning_light', 'sleep'}:
+            if not isinstance(data['morning_light'], list) or not isinstance(data['sleep'], list):
+                raise ValueError('Android export requires light and sleep arrays.')
+            self.import_batch(light=pd.DataFrame(data['morning_light']), sleep=pd.DataFrame(data['sleep']))
+            return
         if not {'morning_light', 'sleep', 'settings'}.issubset(data):
             raise ValueError('Backup requires morning_light, sleep and settings.')
         light = pd.DataFrame(data['morning_light']) if data['morning_light'] else pd.DataFrame(columns=LIGHT_COLUMNS)

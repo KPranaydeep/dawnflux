@@ -19,8 +19,9 @@ import java.util.*;
 public class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private Store store;
-    private TextView live, detail;
-    private EditText wakeInput,targetInput;
+    private TextView live, detail, estimatedTime;
+    private EditText wakeInput,targetInput,onsetInput,scoreInput;
+    private TextView sleepStatus;
     private Button start,stop;
     private Spinner history;
     private Gauge gauge;
@@ -45,13 +46,19 @@ public class MainActivity extends Activity {
         text(body,"Morning light recharge",19);
         text(body,"Keep the phone's light sensor uncovered. This measures light at your phone, not a body battery. You can lock the screen after starting.",15);
         Sensor sensor=LightService.findSensor(getSystemService(SensorManager.class));
-        text(body,sensor==null?"No ambient-light sensor found. Recording is unavailable.":"Sensor: "+sensor.getName()+"\nWake-up sensor: "+sensor.isWakeUpSensor()+" · maximum "+sensor.getMaximumRange()+" lux",13);
+        text(body,sensor==null?"No ambient-light sensor found. Recording is unavailable.":"Sensor: "+sensor.getName()+"\nWake-up sensor: "+sensor.isWakeUpSensor()+" Â· maximum "+sensor.getMaximumRange()+" lux",13);
         gauge=new Gauge(this); body.addView(gauge,new LinearLayout.LayoutParams(-1,dp(80)));
+        text(body,"Estimated time to target",19);
+        estimatedTime=text(body,"Start a light session to calculate",24);
+        text(body,"Dawnflux 0.3.0",12);
         live=text(body,"Ready",19);
-        text(body,"Actual wake time today (HH:mm)",15);
-        wakeInput=new EditText(this); wakeInput.setSingleLine(true); wakeInput.setHint("07:00");
+        text(body,"Sleep ending today · "+LocalDate.now(),22);
+        text(body,"Fell asleep (HH:mm)",15);
+        onsetInput=new EditText(this); onsetInput.setId(101); onsetInput.setSingleLine(true); onsetInput.setHint("23:00"); body.addView(onsetInput);
+        text(body,"Woke up (HH:mm)",15);
+        wakeInput=new EditText(this); wakeInput.setId(102); wakeInput.setSingleLine(true); wakeInput.setHint("07:00");
         wakeInput.setText(getPreferences(0).getString("wake","07:00")); body.addView(wakeInput);
-        text(body,"Target (lux·minutes)",15);
+        text(body,"Target (luxÂ·minutes)",15);
         targetInput=new EditText(this); targetInput.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
         targetInput.setText(getPreferences(0).getString("target","10000")); body.addView(targetInput);
         text(body,"Use your Dawnflux target here. 10,000 is only a placeholder. ETA assumes the current light stays constant; it can change as you move. Sessions stop automatically after two hours even if the ETA is longer.",13);
@@ -60,6 +67,8 @@ public class MainActivity extends Activity {
         button(body,"Notification settings",v->startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName())));
         button(body,"Battery / background settings",v->startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getPackageName()))));
         text(body,"On OxygenOS, allow background activity for Dawnflux if recording stops when locked. Run a short locked-screen test first; missing readings are never guessed.",13);
+        button(body,"Export dashboard upload (light + sleep)",v->exportBundle());
+        text(body,"One JSON file includes all finished light sessions with at least two readings and all saved sleep entries. Stop recording first to include the current session. Upload using JSON in the dashboard; no retyping needed.",14);
         text(body,"Saved sessions",22);
         history=new Spinner(this); body.addView(history);
         detail=text(body,"No sessions yet",15);
@@ -69,8 +78,49 @@ public class MainActivity extends Activity {
         });
         button(body,"Save selected session as CSV",v->export("csv"));
         button(body,"Save selected session as JSON",v->export("json"));
-        text(body,"After stopping: save CSV or JSON to Downloads, then upload it in Dawnflux → Import / export. Your readings stay on this phone unless you export them. No website or internet is needed while recording.",15);
+        text(body,"After stopping: save CSV or JSON to Downloads, then upload it in Dawnflux â†’ Import / export. Your readings stay on this phone unless you export them. No website or internet is needed while recording.",15);
         reloadHistory(); previousRunning=LightService.running;
+    }
+    private void loadSleep() {
+        try {
+            org.json.JSONArray rows=store.sleepRows();
+            for(int i=0;i<rows.length();i++) {
+                org.json.JSONObject row=rows.getJSONObject(i);
+                if(row.getString("date").equals(LocalDate.now().toString())) {
+                    onsetInput.setText(OffsetDateTime.parse(row.getString("sleep_onset")).toLocalTime().toString());
+                    wakeInput.setText(OffsetDateTime.parse(row.getString("wake_time")).toLocalTime().toString());
+                    scoreInput.setText(row.get("sleep_score").toString());
+                    sleepStatus.setText(String.format(Locale.US,"Saved for %s · %.2f hours",row.getString("date"),row.getDouble("sleep_duration")));
+                }
+            }
+        } catch(Exception ex) { message("Could not load sleep: "+ex.getMessage()); }
+    }
+    private void saveSleep() {
+        try {
+            org.json.JSONObject row=SleepEntry.create(onsetInput.getText().toString(),wakeInput.getText().toString(),scoreInput.getText().toString(),ZonedDateTime.now());
+            store.saveSleep(row);
+            getPreferences(0).edit().putString("wake",wakeInput.getText().toString().trim()).apply();
+            loadSleep(); reloadHistory();
+        } catch(Exception ex) { message("Sleep not saved: "+ex.getMessage()); }
+    }
+    private String bundle() throws Exception {
+        org.json.JSONArray light=new org.json.JSONArray();
+        for(Store.Session s:store.sessions()) {
+            List<Store.Sample> samples=store.samples(s.id);
+            if(s.state.equals("active")||samples.size()<2) continue;
+            org.json.JSONArray rows=Export.rows(s,samples);
+            for(int i=0;i<rows.length();i++) light.put(rows.get(i));
+        }
+        org.json.JSONArray sleep=store.sleepRows();
+        if(light.length()==0&&sleep.length()==0) throw new IllegalArgumentException("Save sleep or finish a light session first.");
+        return Export.combined(light,sleep);
+    }
+    private void exportBundle() {
+        try {
+            bundle(); exportFormat="bundle"; exportId=null;
+            startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("application/json").putExtra(Intent.EXTRA_TITLE,"dawnflux-dashboard-"+LocalDate.now()+".json"),20);
+        } catch(Exception ex) { message(ex.getMessage()); }
     }
     private int dp(int n) { return Math.round(n*getResources().getDisplayMetrics().density); }
     private TextView text(LinearLayout body,String value,int size) {
@@ -103,18 +153,25 @@ public class MainActivity extends Activity {
     }
     private final Runnable refresh=new Runnable() {
         @Override public void run() {
-            boolean active=LightService.running;
-            start.setEnabled(!active); stop.setEnabled(active); wakeInput.setEnabled(!active); targetInput.setEnabled(!active);
-            if(active) {
-                double percent=100*LightService.total/Math.max(1,LightService.target);
-                long age=LightService.lastArrival==0?0:(SystemClock.elapsedRealtime()-LightService.lastArrival)/1000;
-                live.setText(String.format(Locale.US,"%s\n%.0f lux · %.1f / %.0f lux·min\n%s\nLast reading: %s",LightService.eta(),LightService.lux,LightService.total,LightService.target,LightService.status,LightService.lastArrival==0?"waiting":age+" seconds ago"));
-                gauge.percent=(float)Math.min(100,percent); gauge.invalidate();
-            } else live.setText(LightService.status);
-            if(active!=previousRunning) { previousRunning=active; reloadHistory(); }
+            renderProgress();
             handler.postDelayed(this,1000);
         }
     };
+    void renderProgress() {
+            boolean active=LightService.running;
+            start.setEnabled(!active); stop.setEnabled(active); wakeInput.setEnabled(true); targetInput.setEnabled(!active);
+            if(active) {
+                double percent=100*LightService.total/Math.max(1,LightService.target);
+                long age=LightService.lastArrival==0?0:(SystemClock.elapsedRealtime()-LightService.lastArrival)/1000;
+                estimatedTime.setText(LightService.eta());
+                live.setText(String.format(Locale.US,"%.0f lux Â· %.1f / %.0f luxÂ·min\n%s\nLast reading: %s",LightService.lux,LightService.total,LightService.target,LightService.status,LightService.lastArrival==0?"waiting":age+" seconds ago"));
+                gauge.percent=(float)Math.min(100,percent); gauge.invalidate();
+            } else {
+                estimatedTime.setText("Start a light session to calculate");
+                live.setText(LightService.status);
+            }
+            if(active!=previousRunning) { previousRunning=active; reloadHistory(); }
+    }
     private void reloadHistory() {
         sessions=store.sessions(); history.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,sessions)); showSession();
     }
@@ -124,7 +181,7 @@ public class MainActivity extends Activity {
     private void showSession() {
         Store.Session s=selected(); if(s==null) { detail.setText("No sessions yet"); return; }
         List<Store.Sample> samples=store.samples(s.id);
-        detail.setText(String.format(Locale.US,"%s\n%s · %s\n%d readings · %.1f lux·min\n%s",s.id,s.state,s.quality,samples.size(),samples.isEmpty()?0:samples.get(samples.size()-1).dose,s.reason));
+        detail.setText(String.format(Locale.US,"%s\n%s Â· %s\n%d readings Â· %.1f luxÂ·min\n%s",s.id,s.state,s.quality,samples.size(),samples.isEmpty()?0:samples.get(samples.size()-1).dose,s.reason));
     }
     private void export(String format) {
         Store.Session s=selected(); if(s==null) { message("Record a session first."); return; }
@@ -142,13 +199,13 @@ public class MainActivity extends Activity {
         try {
             Store.Session session=null;
             for(Store.Session s:store.sessions()) if(s.id.equals(exportId)) session=s;
-            if(session==null) throw new IllegalStateException("Session no longer available");
-            String content="csv".equals(exportFormat)?Export.csv(session,store.samples(session.id)):Export.json(session,store.samples(session.id));
+            if(session==null&&!"bundle".equals(exportFormat)) throw new IllegalStateException("Session no longer available");
+            String content="bundle".equals(exportFormat)?bundle():"csv".equals(exportFormat)?Export.csv(session,store.samples(session.id)):Export.json(session,store.samples(session.id));
             try(OutputStream out=getContentResolver().openOutputStream(data.getData(),"wt")) {
                 if(out==null) throw new IllegalStateException("Could not open the export file");
                 out.write(content.getBytes(StandardCharsets.UTF_8));
             }
-            message("Saved. Upload this file in Dawnflux → Import / export.");
+            message("Saved. Upload this file in Dawnflux â†’ Import / export.");
         } catch(Exception ex) { message("Export failed: "+ex.getMessage()); }
     }
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); out.putString("exportId",exportId); out.putString("exportFormat",exportFormat); }

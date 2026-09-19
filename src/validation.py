@@ -115,7 +115,8 @@ def validate_sleep(frame):
     _numeric(f, 'sleep_score', 0, 100, nullable=True)
     _numeric(f, 'sleep_regularity', 0, 100, nullable=True)
     for row in f.itertuples():
-        bed, onset, wake = map(_timestamp, [row.bedtime, row.sleep_onset, row.wake_time])
+        onset, wake = map(_timestamp, [row.sleep_onset, row.wake_time])
+        bed = onset if pd.isna(row.bedtime) else _timestamp(row.bedtime)
         if not bed <= onset < wake or wake - bed > pd.Timedelta(hours=24):
             raise ValueError('Require bedtime ≤ sleep onset < wake, within 24 hours.')
         if wake.date().isoformat() != row.date:

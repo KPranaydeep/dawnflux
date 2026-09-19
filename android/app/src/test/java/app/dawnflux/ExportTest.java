@@ -17,11 +17,14 @@ public class ExportTest {
         List<Store.Sample> samples=List.of(new Store.Sample(start,500,0),new Store.Sample(start+60_000,1500,1000),new Store.Sample(start+240_000,800,1000));
         Store.Session s=session("complete","gapped");
         String json=Export.json(s,samples),csv=Export.csv(s,samples);
+        org.json.JSONArray sleep=new org.json.JSONArray().put(SleepEntry.create("23:00","07:00","85",java.time.ZonedDateTime.parse("2026-09-10T08:00:00+05:30")));
+        String combined=Export.combined(Export.rows(s,samples),sleep);
         JSONObject object=new JSONObject(json);
         assertEquals(12,object.getJSONArray("morning_light").getJSONObject(0).length());
         assertTrue(object.getJSONArray("morning_light").getJSONObject(1).getBoolean("target_reached"));
         assertFalse(object.has("settings"));
         Path dir=Path.of("build","contract-fixtures"); Files.createDirectories(dir);
+        Files.write(dir.resolve("android-combined.json"),combined.getBytes(StandardCharsets.UTF_8));
         Files.write(dir.resolve("android-session.json"),json.getBytes(StandardCharsets.UTF_8));
         Files.write(dir.resolve("android-session.csv"),csv.getBytes(StandardCharsets.UTF_8));
     }

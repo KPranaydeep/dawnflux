@@ -16,3 +16,20 @@ def test_java_exports_import_without_changes():
     data = json_db.read('light')
     assert data.cumulative_lux_minutes.tolist() == [0, 1000, 1000]
     assert data.measurement_quality.tolist() == ['gapped'] * 3
+
+
+@pytest.mark.skipif(not os.environ.get('ANDROID_CONTRACT_DIR'), reason='Requires Java-generated fixtures')
+def test_combined_android_export():
+    root = Path(os.environ['ANDROID_CONTRACT_DIR'])
+    content = (root / 'android-combined.json').read_text()
+    db = Database()
+    settings = db.settings()
+    db.import_json(content)
+    db.import_json(content)
+    assert len(db.read('light')) == 3
+    sleep = db.read('sleep')
+    assert len(sleep) == 1
+    assert sleep.iloc[0].sleep_duration == 8
+    assert pd.isna(sleep.iloc[0].bedtime)
+    assert sleep.iloc[0].sleep_score == 85
+    assert db.settings() == settings

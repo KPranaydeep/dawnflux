@@ -39,6 +39,9 @@ public final class Export {
         }
         return out.toString();
     }
+    public static String combined(JSONArray light,JSONArray sleep) throws Exception {
+        return new JSONObject().put("schema_version",1).put("morning_light",light).put("sleep",sleep).toString(2);
+    }
     public static String json(Store.Session s, List<Store.Sample> samples) throws Exception {
         return new JSONObject().put("schema_version",1).put("morning_light",rows(s,samples)).toString(2);
     }

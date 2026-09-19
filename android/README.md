@@ -7,10 +7,10 @@ Native, offline morning-light recorder. Android 8+ (API 26), target SDK 36. Inte
 1. Install the APK on the phone. The initial APK is a debug-signed personal testing build, not a Play Store release.
 2. Open Dawnflux. It displays the sensor name, wake-up capability and maximum lux range. If no sensor is exposed by Android, recording is unavailable.
 3. Allow notifications. Both **Light session progress** and **Target and recording alerts** must be enabled.
-4. Enter your actual wake time today and the target from your Dawnflux dashboard. The prefilled 10,000 lux·minutes is only a placeholder.
-5. Tap **Start light session**. Take the phone outside with its light sensor uncovered. The gauge shows accumulated lux·minutes / target; it is not a physiological battery or vitamin D estimate.
+4. Enter your actual wake time today and the target from your Dawnflux dashboard. The prefilled 10,000 luxÂ·minutes is only a placeholder.
+5. Tap **Start light session**. Take the phone outside with its light sensor uncovered. The gauge shows accumulated luxÂ·minutes / target; it is not a physiological battery or vitamin D estimate.
 6. Lock the screen if desired. A foreground notification shows progress and provides **Stop**. Keep the phone out of your pocket. The app holds a bounded partial wake lock only during the explicit session.
-   The app and notification show **ETA**: remaining lux·minutes divided by the latest measured lux. It updates with real readings and assumes the light stays constant. Dark, stale or unreliable readings do not produce an ETA. Estimates may exceed the two-hour recording limit; they do not extend the session or add unmeasured exposure.
+   The app and notification show **ETA**: remaining luxÂ·minutes divided by the latest measured lux. It updates with real readings and assumes the light stays constant. Dark, stale or unreliable readings do not produce an ETA. Estimates may exceed the two-hour recording limit; they do not extend the session or add unmeasured exposure.
 7. The target alert fires once per session. Recording continues until you tap **Stop and save**, or the two-hour cap is reached.
 8. Choose a saved session and save CSV or JSON using Android's document picker. Upload it in Streamlit's **Import / export** page: choose **Morning light CSV** or **JSON backup / Android session**.
 9. Record the following night's sleep in Streamlit to build the exposure/outcome evidence. Android records light only.
@@ -19,7 +19,7 @@ The app does not need Streamlit, Chrome, a server, an account, or network connec
 
 ## First OnePlus test
 
-Record for 2–3 minutes with the screen on, then 2–3 minutes locked, then stop. Inspect/export the session: readings should continue and have no gaps over 120 seconds. Cover/uncover the sensor to confirm readings respond. If delivery pauses, open **Battery / background settings** and allow background activity for Dawnflux as available in your OxygenOS version; repeat the test. A foreground service cannot guarantee every vendor's screen-off sensor behavior.
+Record for 2â€“3 minutes with the screen on, then 2â€“3 minutes locked, then stop. Inspect/export the session: readings should continue and have no gaps over 120 seconds. Cover/uncover the sensor to confirm readings respond. If delivery pauses, open **Battery / background settings** and allow background activity for Dawnflux as available in your OxygenOS version; repeat the test. A foreground service cannot guarantee every vendor's screen-off sensor behavior.
 
 No sun-gazing or special exposure duration is required to test the sensor. The readings describe the light at the handset, which may differ from light at your eyes.
 
@@ -32,7 +32,7 @@ No sun-gazing or special exposure duration is required to test the sensor. The r
 * Accepts current sensor events at most once per second. Rejects negative/nonfinite lux, stale/batched events and events predating start. Sensor saturation/unreliable accuracy marks the session poor.
 * The wall timestamp is anchored once to the monotonic clock. Device wall-clock adjustments during a session do not add/subtract exposure. Export uses the wake timestamp's fixed offset for a consistent local session date.
 * `Dose`: trapezoidal integration in elapsed milliseconds; intervals >120,000 ms contribute zero. This matches Python's v1 rule.
-* SQLite sample insertion and quality updates are transactional. A stopped session requires ≥2 real samples for export. Start/end are the first/last sample instants, not button-tap times.
+* SQLite sample insertion and quality updates are transactional. A stopped session requires â‰¥2 real samples for export. Start/end are the first/last sample instants, not button-tap times.
 * CSV contains exactly the original 12 light fields. JSON is `{ "schema_version": 1, "morning_light": [...] }`; the importer preserves existing sleep and settings.
 * No automatic transmission or background sync. Transfer is deliberately via user-selected files.
 
@@ -49,3 +49,13 @@ gradle -p android testDebugUnitTest lintDebug assembleDebug
 From inside this directory omit `-p android`. Output: `app/build/outputs/apk/debug/app-debug.apk`. The GitHub **Android APK** workflow builds the APK, runs JVM tests and Android lint, then imports actual Java-produced CSV and JSON fixtures using the Python database layer. Artifacts are downloadable from the successful workflow run.
 
 Hardware tests remain necessary: sensor presence, saturation, notifications denied/disabled, lock screen, battery saver, kill/force-stop, clock change, background restrictions, target reached once, manual stop, two-hour cap, export/re-import. Automated build tests are not evidence of OnePlus screen-off sensor reliability.
+
+
+## Three-input sleep log (0.3.0)
+During or outside a light session, enter **Fell asleep**, **Woke up** (24-hour HH:mm), and **Sleep score** (0–100), then tap **Save sleep**. Wake date is today in the phone timezone. If the sleep clock time is later than the wake clock time, onset belongs to yesterday. Dates and onset-to-wake duration are derived; bedtime is unknown (`null`), not fabricated. Regularity is calculated by the dashboard from consecutive dates. Night awakenings are not subtracted from duration.
+
+Saving sleep also updates today's recorded light-session wake times, provided waking precedes every reading. You can correct today's sleep before uploading. Entries remain in app-private SQLite across restarts; the version-1 database is migrated without deleting recordings.
+
+Tap **Export dashboard upload (light + sleep)** for one schema-version-1 JSON containing all saved sleep and all non-active light sessions with at least two real readings. Active/inadequate sessions remain on the phone and are excluded; stop first to include the current session. Sleep-only export works too. In Streamlit, select the JSON import and upload this file. Existing dashboard settings are preserved and identical re-imports do not duplicate records. Conflicting edits to previously imported records are rejected by the dashboard rather than silently overwritten.
+
+Sleep ending this morning is a baseline, not the outcome of this morning's light: analysis pairs today's exposure with sleep ending tomorrow. Continue logging each morning for paired evidence. Export personal data before uninstalling an older preview APK; CI debug builds may use different signing keys.

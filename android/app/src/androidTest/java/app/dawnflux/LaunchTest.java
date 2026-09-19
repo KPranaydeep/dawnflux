@@ -5,12 +5,38 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.os.SystemClock;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
 public class LaunchTest {
+    @Test public void runningSessionShowsNumericTimeAndStaleReason() {
+        try(ActivityScenario<MainActivity> app=ActivityScenario.launch(MainActivity.class)) {
+            app.onActivity(activity-> {
+                try {
+                    LightService.running=true;
+                    LightService.total=5000; LightService.target=10000; LightService.lux=500;
+                    LightService.etaReliable=true; LightService.lastArrival=SystemClock.elapsedRealtime();
+                    activity.renderProgress();
+                    View root=activity.findViewById(android.R.id.content);
+                    assertTrue(contains(root,"Estimated time to target"));
+                    assertTrue(contains(root,"about 10 min 0 sec"));
+                    assertTrue(contains(root,"Save sleep"));
+                    assertTrue(activity.findViewById(101).isEnabled());
+                    assertTrue(activity.findViewById(102).isEnabled());
+                    assertTrue(activity.findViewById(103).isEnabled());
+                    LightService.lastArrival=0;
+                    activity.renderProgress();
+                    assertTrue(contains(root,"waiting for fresh readings"));
+                } finally {
+                    LightService.running=false; LightService.total=0; LightService.target=0;
+                    LightService.lastArrival=0; LightService.etaReliable=false;
+                }
+            });
+        }
+    }
     private boolean contains(View view,String text) {
         if(view instanceof TextView && ((TextView)view).getText().toString().contains(text)) return true;
         if(view instanceof ViewGroup) {
@@ -25,6 +51,8 @@ public class LaunchTest {
                 View root=activity.findViewById(android.R.id.content);
                 assertTrue(contains(root,"Morning light recharge"));
                 assertTrue(contains(root,"Start light session"));
+                assertTrue(contains(root,"Estimated time to target"));
+                assertTrue(contains(root,"Start a light session to calculate"));
                 assertTrue(contains(root,"Save selected session as CSV"));
             });
             app.recreate();
