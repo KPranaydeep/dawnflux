@@ -24,9 +24,9 @@ public class LaunchTest {
                     assertTrue(contains(root,"Estimated time to target"));
                     assertTrue(contains(root,"about 10 min 0 sec"));
                     assertTrue(contains(root,"Save sleep"));
-                    assertTrue(activity.findViewById(101).isEnabled());
-                    assertTrue(activity.findViewById(102).isEnabled());
-                    assertTrue(activity.findViewById(103).isEnabled());
+                    assertTrue(activity.findViewById(R.id.sleep_onset).isEnabled());
+                    assertTrue(activity.findViewById(R.id.sleep_wake).isEnabled());
+                    assertTrue(activity.findViewById(R.id.sleep_score).isEnabled());
                     LightService.lastArrival=0;
                     activity.renderProgress();
                     assertTrue(contains(root,"waiting for fresh readings"));

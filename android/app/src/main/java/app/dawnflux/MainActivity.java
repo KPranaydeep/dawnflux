@@ -54,12 +54,12 @@ public class MainActivity extends Activity {
         live=text(body,"Ready",19);
         text(body,"Sleep ending today · "+LocalDate.now(),22);
         text(body,"Fell asleep (HH:mm)",15);
-        onsetInput=new EditText(this); onsetInput.setId(101); onsetInput.setSingleLine(true); onsetInput.setHint("23:00"); body.addView(onsetInput);
+        onsetInput=new EditText(this); onsetInput.setId(R.id.sleep_onset); onsetInput.setSingleLine(true); onsetInput.setHint("23:00"); body.addView(onsetInput);
         text(body,"Woke up (HH:mm)",15);
-        wakeInput=new EditText(this); wakeInput.setId(102); wakeInput.setSingleLine(true); wakeInput.setHint("07:00");
+        wakeInput=new EditText(this); wakeInput.setId(R.id.sleep_wake); wakeInput.setSingleLine(true); wakeInput.setHint("07:00");
         wakeInput.setText(getPreferences(0).getString("wake","07:00")); body.addView(wakeInput);
         text(body,"Sleep score (0-100)",15);
-        scoreInput=new EditText(this); scoreInput.setId(103); scoreInput.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL); body.addView(scoreInput);
+        scoreInput=new EditText(this); scoreInput.setId(R.id.sleep_score); scoreInput.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL); body.addView(scoreInput);
         button(body,"Save sleep",v->saveSleep());
         sleepStatus=text(body,"Enter last night's sleep here, even while light recording is running. Wake date is today; an evening sleep time means the previous night.",14);
         loadSleep();
