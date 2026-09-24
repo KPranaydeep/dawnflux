@@ -99,7 +99,10 @@ elif page == 'Import / export':
     st.subheader('Import records')
     kind = st.selectbox('Import format', ['JSON backup / Android session', 'Morning light CSV', 'Sleep CSV'])
     upload = st.file_uploader('Choose a file', type=['csv', 'json'], max_upload_size=20)
-    st.caption('Imports are atomic. Identical re-imports do not create duplicates; conflicting records are rejected. Keep each sensor session complete in one file.')
+    conflict_choice = st.selectbox('When an uploaded record differs',
+        ['Reject conflicts', 'Keep existing records; import new days'], key='import_conflict_policy')
+    conflict_policy = 'keep_existing' if conflict_choice.startswith('Keep') else 'reject'
+    st.caption('Restore your backup, then import the APK export. Repeated records and tiny rounding differences do not create duplicates. Keep-existing mode retains each conflicting light session or sleep day in full and imports new data. It does not apply corrections from the uploaded file.')
     if st.button('Import file', disabled=upload is None):
         if upload is not None:
             try:
@@ -107,12 +110,16 @@ elif page == 'Import / export':
                     raise ValueError('Maximum file size is 20 MB.')
                 text = upload.getvalue().decode('utf-8-sig')
                 if kind == 'JSON backup / Android session':
-                    db.import_json(text)
+                    report = db.import_json(text, conflict_policy=conflict_policy)
                 else:
                     frame = pd.read_csv(io.StringIO(text), dtype={'session_id': str, 'date': str}, keep_default_na=False,
                                         na_values=[''])
-                    db.import_batch(**{'light' if kind == 'Morning light CSV' else 'sleep': frame})
-                saved('Import complete.')
+                    report = db.import_batch(**{'light' if kind == 'Morning light CSV' else 'sleep': frame}, conflict_policy=conflict_policy)
+                message = (f"Import complete: {report['added_light_sessions']} new light sessions, "
+                           f"{report['added_sleep_days']} new sleep days; {report['unchanged']} unchanged.")
+                if report['kept_conflicts']:
+                    message += ' Kept saved versions (uploaded changes skipped): ' + ', '.join(report['kept_conflicts'])
+                saved(message)
             except (ValueError, TypeError, KeyError, OverflowError, StorageError) as exc:
                 st.error(f'Import rejected: {exc}')
     st.subheader('Export and backup')

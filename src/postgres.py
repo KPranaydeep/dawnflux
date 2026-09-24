@@ -76,7 +76,7 @@ class PostgresDatabase(Database):
                 # Lock per account BEFORE reading and validating. Parallel imports
                 # merge against the latest committed records, never a stale snapshot.
                 staged, row, existing = self._snapshot(conn, lock=True)
-                operation(staged, *args, **kwargs)
+                report = operation(staged, *args, **kwargs)
                 records = staged.connection.execute('SELECT kind, record_key, payload FROM records').fetchall()
                 with conn.cursor() as cursor:
                     cursor.executemany('INSERT INTO dawnflux_records(owner_id,kind,record_key,payload) VALUES (%s,%s,%s,%s)',
@@ -87,6 +87,7 @@ class PostgresDatabase(Database):
             # Only show success / adopt local state AFTER COMMIT succeeds.
             self._adopt(staged, result[0], result[1])
             staged = None
+            return report
         except psycopg.Error:
             raise StorageError('The save could not be confirmed. Reload to check saved records before retrying a manual entry. Re-importing the same file is safe.') from None
         finally:
@@ -96,8 +97,8 @@ class PostgresDatabase(Database):
     def save_settings(self, settings):
         self._mutate(Database.save_settings, settings)
 
-    def import_batch(self, light=None, sleep=None, settings=None):
-        self._mutate(Database.import_batch, light, sleep, settings)
+    def import_batch(self, light=None, sleep=None, settings=None, conflict_policy="reject"):
+        return self._mutate(Database.import_batch, light, sleep, settings, conflict_policy=conflict_policy)
 
-    def import_json(self, content):
-        self._mutate(Database.import_json, content)
+    def import_json(self, content, conflict_policy="reject"):
+        return self._mutate(Database.import_json, content, conflict_policy=conflict_policy)

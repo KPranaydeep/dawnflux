@@ -49,3 +49,9 @@ gradle -p android testDebugUnitTest lintDebug assembleDebug
 From inside this directory omit `-p android`. Output: `app/build/outputs/apk/debug/app-debug.apk`. The GitHub **Android APK** workflow builds the APK, runs JVM tests and Android lint, then imports actual Java-produced CSV and JSON fixtures using the Python database layer. Artifacts are downloadable from the successful workflow run.
 
 Hardware tests remain necessary: sensor presence, saturation, notifications denied/disabled, lock screen, battery saver, kill/force-stop, clock change, background restrictions, target reached once, manual stop, two-hour cap, export/re-import. Automated build tests are not evidence of OnePlus screen-off sensor reliability.
+
+
+### Daily backup and Android imports
+Restore the previous complete JSON backup, then import today's APK JSON. Existing sessions and sleep days are compared as complete records; decimal rounding from older backups and equivalent timestamp spellings are treated as unchanged. No duplicate readings are added. New exports retain up to 15 decimal places.
+
+If a recorded value was actually changed, the error identifies the light session or sleep date. In **Import / export**, choose **Keep existing records; import new days** to retain the saved version of each conflicting session/day and add new data. The import result lists skipped changes. This mode never silently applies uploaded corrections or merges fragments of a light session. Invalid or overlapping data still rejects the transaction. Download a new complete backup after importing.

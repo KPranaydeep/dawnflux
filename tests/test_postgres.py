@@ -92,3 +92,16 @@ def test_cloud_settings_persist_and_android_does_not_reset_them(remote, light):
     fresh = PostgresDatabase(DSN, remote._owner, local_test=True)
     assert fresh.settings()['initial_target'] == 12345
     assert fresh.revision == 2
+
+
+def test_daily_merge_returns_report_and_preserves_cloud_history(remote, light, sleep):
+    remote.import_batch(sleep=sleep)
+    conflict = sleep.copy()
+    conflict.notes = 'Uploaded correction'
+    payload = json.dumps(dict(schema_version=1, morning_light=light.to_dict('records'), sleep=conflict.to_dict('records')))
+    report = remote.import_json(payload, conflict_policy='keep_existing')
+    assert report['added_light_sessions'] == 1
+    assert report['kept_conflicts'] == ['sleep: 2026-09-02']
+    fresh = PostgresDatabase(DSN, remote._owner, local_test=True)
+    assert fresh.read('sleep').iloc[0].notes == 'Synthetic test'
+    assert len(fresh.read('light')) == 2
